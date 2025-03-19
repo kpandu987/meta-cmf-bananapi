@@ -1,0 +1,15 @@
+diff --git a/source/hostap-2.10/src/ap/ap_config.c b/source/hostap-2.10/src/ap/ap_config.c
+index 7cb5aa514..98d4a3302 100644
+--- a/source/hostap-2.10/src/ap/ap_config.c
++++ b/source/hostap-2.10/src/ap/ap_config.c
+@@ -484,8 +484,8 @@ int hostapd_setup_sae_pt(struct hostapd_bss_config *conf)
+ 	if ((conf->sae_pwe == 0 && !hostapd_sae_pw_id_in_use(conf) &&
+ 	     !hostapd_sae_pk_in_use(conf)) ||
+ 	    conf->sae_pwe == 3 ||
+-	    !wpa_key_mgmt_sae(conf->wpa_key_mgmt) ||
+-		!wpa_key_mgmt_sae(conf->wpa_key_mgmt_rsno))
++	    !(wpa_key_mgmt_sae(conf->wpa_key_mgmt) ||
++		  wpa_key_mgmt_sae(conf->wpa_key_mgmt_rsno)))
+ 		return 0; /* PT not needed */
+ 
+ 	sae_deinit_pt(ssid->pt);

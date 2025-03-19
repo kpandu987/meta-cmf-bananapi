@@ -1,0 +1,138 @@
+diff --git a/wifi_hal_ap.h b/wifi_hal_ap.h
+index a5b1acf..e50db36 100644
+--- a/wifi_hal_ap.h
++++ b/wifi_hal_ap.h
+@@ -1744,6 +1744,51 @@ void wifi_newApAssociatedDevice_callback_register(wifi_newApAssociatedDevice_cal
+ */
+ typedef INT ( * wifi_apDisassociatedDevice_callback)(INT apIndex, char *MAC, INT event_type);
+ 
++/* wifi_stamode_callback() function */
++/**
++* @brief This call back will be invoked for all of these assoc request,reassoc request,eapol frames
++*
++* @param[in] apIndex          Access Point Index
++* @param[in] mac              MAC address of associated device
++* @param[in] key_mgmt         authentication key management  of associated device
++* @param[in] type             frame type of associated device
++* @param[in] radio            radio to which associated device connected
++* @param[in] mode             security mode of gateway with respect to akm
++* @return The status of the operation
++* @retval RETURN_OK if successful
++* @retval RETURN_ERR if any error is detected
++*
++* @execution Synchronous
++* @sideeffect None
++*
++* @note This function must not suspend and must not invoke any blocking system
++* calls. It should probably just send a message to a driver event handler task.
++*
++*/
++typedef INT ( * wifi_stamode_callback)(int apIndex, char *mac, int key_mgmt, int type, int radio, int mode);
++
++/* wifi_hal_ap_max_client_rejection_callback_register() function */
++/**
++ * @brief This call back will be called whenever an authentication response with reject reason 17
++ * is received.
++ *
++ * @param[in] apIndex          Access Point Index
++ * @param[in] mac_address      client_mac_address
++ * @param[in] reject_reason    reject reason
++ *
++ * @return The status of the operation
++ * @retval RETURN_OK if successful
++ * @retval RETURN_ERR if any error is detected
++ *
++ * @execution Synchronous
++ * @sideeffect None
++ *
++ * @note This function must not suspend and must not invoke any blocking system
++ * calls. It should probably just send a message to a driver event handler task.
++ *
++ */
++typedef INT (*wifi_apMaxClientRejection_callback)(INT apIndex, char *MAC, INT reason);
++
+ /* wifi_radiusEapFailure_callback() function */
+ /**
+ * @brief This call back will be invoked when new there is a radius or EAP failure happens.
+@@ -1784,6 +1829,25 @@ typedef INT ( * wifi_radiusEapFailure_callback)(INT apIndex, INT failure_reason)
+ 
+ void wifi_radiusEapFailure_callback_register(wifi_radiusEapFailure_callback callback_proc);
+ 
++/* wifi_ap_stamode_callback_register() function */
++/**
++* @brief Callback registration function.
++*
++* @param[in] callback_proc  wifi_stamode_callback callback function
++*
++* @return The status of the operation
++* @retval RETURN_OK if successful
++* @retval RETURN_ERR if any error is detected
++*
++* @execution Synchronous
++* @sideeffect None
++*
++* @note This function must not suspend and must not invoke any blocking system
++* calls. It should probably just send a message to a driver event handler task.
++*
++*/
++void wifi_ap_stamode_callback_register(wifi_stamode_callback callback_proc);
++
+ typedef INT ( * wifi_radiusFallback_failover_callback)(INT apIndex, INT failure_reason);
+ 
+ void wifi_radiusFallback_failover_callback_register(wifi_radiusFallback_failover_callback callback_proc);
+@@ -2674,6 +2738,16 @@ typedef struct {
+ } __attribute__((packed)) wifi_back_haul_sta_t;
+ 
+ #define WIFI_AP_MAX_SSID_LEN    33
++
++/**
++ * @brief Maximum length of the vendor information elements buffer
++ *
++ * Not a standard value, but a reasonable maximum for vendor elements
++ * Computed by taking Max MPDU size - ~ MAX 802.11 header size - 802.11 FCS size - ~Size of required IEs
++ * 2,310 is divisible by the typical Vendor IE size (7 = IE Type[1] + IE Length[1] + OUI[3] + VIE Type[1] + VIE Subtype [1])
++ */
++#define WIFI_AP_MAX_VENDOR_IE_LEN 2310
++
+ typedef struct {
+     CHAR    ssid[WIFI_AP_MAX_SSID_LEN];
+     BOOL    enabled;
+@@ -2709,6 +2783,8 @@ typedef struct {
+     wifi_mld_info_ap_t mld_info;
+     BOOL   hostap_mgt_frame_ctrl;
+     BOOL   mbo_enabled;
++    UCHAR vendor_elements[WIFI_AP_MAX_VENDOR_IE_LEN]; /**< The vendor elements to be added to beacon/probe response frames. Includes IE ID (0xDD), Length, and Payload */
++    USHORT vendor_elements_len;        /**< Length of vendor_elements currently stored since it is not null terminated */
+ } __attribute__((packed)) wifi_front_haul_bss_t;
+ 
+ #define WIFI_BRIDGE_NAME_LEN  32
+@@ -2857,4 +2933,4 @@ INT wifi_hal_analytics_callback_register(wifi_analytics_callback callback);
+ }
+ #endif
+ 
+-#endif
+\ No newline at end of file
++#endif
+diff --git a/wifi_hal_generic.h b/wifi_hal_generic.h
+index 7edc2c4..624fbe0 100644
+--- a/wifi_hal_generic.h
++++ b/wifi_hal_generic.h
+@@ -274,7 +274,8 @@ typedef enum {
+     wifi_security_mode_wpa3_personal = 0x00000200,
+     wifi_security_mode_wpa3_transition = 0x00000400,
+     wifi_security_mode_wpa3_enterprise = 0x00000800,
+-    wifi_security_mode_enhanced_open = 0x00001000
++    wifi_security_mode_enhanced_open = 0x00001000,
++    wifi_security_mode_wpa3_compatibility = 0x00002000
+ } wifi_security_modes_t;
+ 
+ /**
+@@ -830,7 +831,7 @@ typedef struct {
+      CHAR software_version[DEFAULT_DEVICE_FIELD_LEN];
+      mac_address_t cm_mac;
+      mac_address_t al_1905_mac;
+-
++     int colocated_mode; /**< Easymesh agent mode based on controller configuration */
+ }__attribute__((packed)) wifi_platform_property_t;
+ 
+ /**
